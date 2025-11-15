@@ -1,0 +1,4 @@
+# Travelling Salesman Problem (TSP) with Genetic Algorithm
+This problem involves solving the Travelling Salesman Problem (TSP), a classic NP-hard optimization problem. The objective is to find the shortest possible route (tour) that visits each of the 16 cities exactly once and returns to the original starting city, given a 16x16 matrix representing the distance between each pair of cities.
+#
+Solve the travelling salesman problem using GA. The number of cities is 16. The weight matrix will be given as input, and it represents the distance of each city. After 20 iterations you will stop the algorithm. The number of chromosomes is 10. Output is the sequence of cities to travel by the salesman (best solution given by GA). You may consider elitism principle and roulette-wheel based selection procedure. You can go for one point crossover and crossover points will randomly selected. Take extra care so that each city will represent once in the solution.
