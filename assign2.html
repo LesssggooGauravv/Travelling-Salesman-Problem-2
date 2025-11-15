@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>TSP using Genetic Algorithm</title>
+        <!-- Tailwind CSS CDN -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            body {
+                font-family: "Inter", sans-serif;
+            }
+            #matrixInput {
+                font-family: monospace;
+                font-size: 0.85rem;
+                line-height: 1.2;
+                width: 100%;
+                height: 250px;
+            }
+            #gaLog {
+                font-family: monospace;
+                font-size: 0.9rem;
+                height: 300px;
+                overflow-y: scroll;
+                background-color: #f3f4f6;
+                border: 1px solid #d1d5db;
+                padding: 8px;
+                border-radius: 0.5rem;
+            }
+            canvas {
+                border-radius: 0.5rem;
+                border: 1px solid #e2e8f0;
+                background-color: #fdfdfd;
+            }
+        </style>
+    </head>
+    <body class="bg-gray-100 min-h-screen p-4 md:p-8">
+        <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">
+                Travelling Salesman Problem (TSP) using Genetic Algorithm
+            </h1>
+
+            <!-- Main Grid Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                <!-- Left Column: Controls & Input -->
+                <div class="space-y-4">
+                    <!-- Parameters -->
+                    <div
+                        class="bg-gray-50 p-4 rounded-lg border border-gray-200"
+                    >
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                            Parameters
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                                <span class="block text-sm text-gray-500"
+                                    >Cities</span
+                                >
+                                <span
+                                    class="text-xl font-bold text-blue-600"
+                                    id="numCities"
+                                    >16</span
+                                >
+                            </div>
+                            <div>
+                                <span class="block text-sm text-gray-500"
+                                    >Population</span
+                                >
+                                <span
+                                    class="text-xl font-bold text-blue-600"
+                                    id="popSize"
+                                    >10</span
+                                >
+                            </div>
+                            <div>
+                                <span class="block text-sm text-gray-500"
+                                    >Generations</span
+                                >
+                                <span
+                                    class="text-xl font-bold text-blue-600"
+                                    id="numGenerations"
+                                    >20</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Matrix Input -->
+                    <div>
+                        <label
+                            for="matrixInput"
+                            class="block text-lg font-medium text-gray-700 mb-2"
+                        >
+                            Distance Matrix (16x16)
+                        </label>
+                        <textarea
+                            id="matrixInput"
+                            class="border rounded-lg p-2"
+                        ></textarea>
+                    </div>
+
+                    <!-- Control Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button
+                            id="startButton"
+                            class="w-full sm:w-1/2 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-200"
+                        >
+                            Start Genetic Algorithm
+                        </button>
+                        <button
+                            id="randomButton"
+                            class="w-full sm:w-1/2 bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-200"
+                        >
+                            Use Random Matrix
+                        </button>
+                    </div>
+
+                    <!-- GA Progress Log -->
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-700 mb-2">
+                            GA Progress
+                        </h3>
+                        <div id="gaLog" class="rounded-lg"></div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Visualization & Results -->
+                <div class="space-y-4">
+                    <!-- Results -->
+                    <div
+                        class="bg-blue-50 border border-blue-200 p-4 rounded-lg"
+                    >
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                            Best Result Found
+                        </h3>
+                        <div class="text-center mb-2">
+                            <span class="block text-sm text-gray-500"
+                                >Best Distance</span
+                            >
+                            <span
+                                id="bestDistance"
+                                class="text-4xl font-bold text-blue-700"
+                                >...</span
+                            >
+                        </div>
+                        <div>
+                            <span
+                                class="block text-sm text-gray-500 text-center"
+                                >Best Route (Sequence)</span
+                            >
+                            <div
+                                id="bestRoute"
+                                class="text-sm text-center text-blue-900 font-mono break-words p-2 bg-blue-100 rounded"
+                            >
+                                ...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Visualization -->
+                    <div
+                        class="bg-gray-50 p-4 rounded-lg border border-gray-200"
+                    >
+                        <h3
+                            class="text-lg font-medium text-gray-700 text-center mb-2"
+                        >
+                            City Map & Best Route
+                        </h3>
+                        <div class="aspect-square w-full">
+                            <canvas
+                                id="tspCanvas"
+                                class="w-full h-full"
+                            ></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // --- 1. Constants & GA Parameters ---
+            const NUM_CITIES = 16;
+            const POP_SIZE = 10;
+            const GENERATIONS = 20;
+            const MUTATION_RATE = 0.2; // 20% chance of mutation
+            const ELITE_SIZE = 1; // Elitism: Keep 1 best individual
+
+            // --- 2. DOM Elements ---
+            const startButton = document.getElementById("startButton");
+            const randomButton = document.getElementById("randomButton");
+            const matrixInput = document.getElementById("matrixInput");
+            const gaLog = document.getElementById("gaLog");
+            const bestDistanceEl = document.getElementById("bestDistance");
+            const bestRouteEl = document.getElementById("bestRoute");
+            const canvas = document.getElementById("tspCanvas");
+            const ctx = canvas.getContext("2d");
+
+            // --- 3. Global State ---
+            let distanceMatrix = [];
+            let cityCoordinates = [];
+            let population = [];
+            let globalBestRoute = [];
+            let globalBestDist = Infinity;
+            let gaRunning = false;
+
+            // --- 4. GA Helper Functions ---
+
+            /**
+             * Parses the matrix from the textarea.
+             * @returns {boolean} True if successful, false if error.
+             */
+            function parseMatrix() {
+                const text = matrixInput.value.trim();
+                if (!text) {
+                    log("Error: Distance matrix is empty.");
+                    return false;
+                }
+
+                const rows = text.split("\n");
+                if (rows.length !== NUM_CITIES) {
+                    log(
+                        `Error: Matrix must have ${NUM_CITIES} rows. Found ${rows.length}.`
+                    );
+                    return false;
+                }
+
+                distanceMatrix = [];
+                for (let i = 0; i < rows.length; i++) {
+                    const rowText = rows[i].trim();
+                    // Split by one or more spaces
+                    const cols = rowText.split(/\s+/).map(Number);
+
+                    if (cols.length !== NUM_CITIES) {
+                        log(
+                            `Error: Row ${i} must have ${NUM_CITIES} columns. Found ${cols.length}.`
+                        );
+                        return false;
+                    }
+                    if (cols.some(isNaN)) {
+                        log(`Error: Row ${i} contains non-numeric values.`);
+                        return false;
+                    }
+                    distanceMatrix.push(cols);
+                }
+                log("Distance matrix parsed successfully.");
+                return true;
+            }
+
+            /**
+             * Generates a random symmetric distance matrix and fills the textarea.
+             */
+            function generateRandomMatrix() {
+                let matrix = Array(NUM_CITIES)
+                    .fill(0)
+                    .map(() => Array(NUM_CITIES).fill(0));
+                let text = "";
+                for (let i = 0; i < NUM_CITIES; i++) {
+                    for (let j = i; j < NUM_CITIES; j++) {
+                        if (i === j) {
+                            matrix[i][j] = 0;
+                        } else {
+                            const dist = Math.floor(Math.random() * 90) + 10; // Dist 10-99
+                            matrix[i][j] = dist;
+                            matrix[j][i] = dist;
+                        }
+                    }
+                }
+
+                for (let i = 0; i < NUM_CITIES; i++) {
+                    text += matrix[i].join(" ") + "\n";
+                }
+                matrixInput.value = text.trim();
+                log("Random symmetric matrix generated.");
+            }
+
+            /**
+             * Generates fixed (x, y) coordinates for cities for plotting.
+             */
+            function generateCityCoordinates() {
+                cityCoordinates = [];
+                // Ensure canvas is sized correctly before getting dimensions
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+
+                const pad = 30; // Padding
+                const w = canvas.width - 2 * pad;
+                const h = canvas.height - 2 * pad;
+
+                for (let i = 0; i < NUM_CITIES; i++) {
+                    cityCoordinates.push({
+                        x: Math.random() * w + pad,
+                        y: Math.random() * h + pad,
+                    });
+                }
+                log("City coordinates generated for visualization.");
+            }
+
+            /**
+             * Calculates the total distance of a route.
+             * @param {number[]} route - Array of city indices, e.g., [0, 4, 2, ...]
+             * @returns {number} The total distance.
+             */
+            function routeLength(route) {
+                let totalDist = 0;
+                for (let i = 0; i < NUM_CITIES; i++) {
+                    let cityA = route[i];
+                    let cityB = route[(i + 1) % NUM_CITIES]; // Wrap around
+                    totalDist += distanceMatrix[cityA][cityB];
+                }
+                return totalDist;
+            }
+
+            /**
+             * Calculates fitness (1 / distance).
+             * @param {number[]} route - Array of city indices.
+             * @returns {number} The fitness value.
+             */
+            function fitness(route) {
+                return 1 / (routeLength(route) + 1e-9); // Add epsilon to avoid div by zero
+            }
+
+            /**
+             * Creates the initial population of random routes.
+             */
+            function initialPopulation() {
+                population = [];
+                let baseRoute = Array(NUM_CITIES)
+                    .fill(0)
+                    .map((_, i) => i); // [0, 1, ..., 15]
+
+                for (let i = 0; i < POP_SIZE; i++) {
+                    // Shuffle the base route
+                    let newRoute = [...baseRoute].sort(
+                        () => Math.random() - 0.5
+                    );
+                    population.push(newRoute);
+                }
+                log("Initial population created.");
+            }
+
+            /**
+             * Selects a parent using Roulette Wheel selection.
+             * @param {number[]} fitnesses - Array of fitness values for the population.
+             * @returns {number[]} The selected parent route.
+             */
+            function rouletteSelection(fitnesses) {
+                const totalFit = fitnesses.reduce((a, b) => a + b, 0);
+                const pick = Math.random() * totalFit;
+
+                let current = 0;
+                for (let i = 0; i < POP_SIZE; i++) {
+                    current += fitnesses[i];
+                    if (current >= pick) {
+                        return population[i];
+                    }
+                }
+                return population[population.length - 1]; // Fallback
+            }
+
+            /**
+             * Performs one-point crossover, ensuring a valid permutation.
+             * @param {number[]} p1 - Parent 1 route.
+             * @param {number[]} p2 - Parent 2 route.
+             * @returns {number[]} The child route.
+             */
+            function onePointCrossover(p1, p2) {
+                const cut = Math.floor(Math.random() * (NUM_CITIES - 1)) + 1; // Cut point 1 to N-1
+                const prefix = p1.slice(0, cut);
+
+                // Add remaining cities from p2 in order
+                const remainder = p2.filter((city) => !prefix.includes(city));
+
+                return prefix.concat(remainder);
+            }
+
+            /**
+             * Performs swap mutation on a route.
+             * @param {number[]} route - The route to mutate.
+             */
+            function mutate(route) {
+                if (Math.random() < MUTATION_RATE) {
+                    const i = Math.floor(Math.random() * NUM_CITIES);
+                    const j = Math.floor(Math.random() * NUM_CITIES);
+                    // Swap
+                    [route[i], route[j]] = [route[j], route[i]];
+                }
+            }
+
+            /**
+             * Runs one generation of the GA.
+             * @returns {[number[], number]} The [bestRoute, bestDist] of this generation.
+             */
+            function evolvePopulation() {
+                let fitnesses = [];
+                let lengths = [];
+
+                for (const route of population) {
+                    const len = routeLength(route);
+                    lengths.push(len);
+                    fitnesses.push(1 / (len + 1e-9));
+                }
+
+                let newPopulation = [];
+
+                // Elitism: Find and keep the best
+                let genBestDist = Infinity;
+                let genBestRoute = [];
+                for (let i = 0; i < POP_SIZE; i++) {
+                    if (lengths[i] < genBestDist) {
+                        genBestDist = lengths[i];
+                        genBestRoute = population[i];
+                    }
+                }
+
+                // Add elite(s)
+                newPopulation.push([...genBestRoute]); // Add a copy
+
+                // Fill rest of population
+                while (newPopulation.length < POP_SIZE) {
+                    const p1 = rouletteSelection(fitnesses);
+                    const p2 = rouletteSelection(fitnesses);
+
+                    let child = onePointCrossover(p1, p2);
+                    mutate(child);
+                    newPopulation.push(child);
+                }
+
+                population = newPopulation;
+                return [genBestRoute, genBestDist];
+            }
+
+            // --- 5. Visualization Functions ---
+
+            /**
+             * Draws the city map and the route.
+             * @param {number[]} route - The route to draw.
+             */
+            function drawCanvas(route) {
+                // Ensure canvas is sized correctly
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw Cities
+                for (let i = 0; i < NUM_CITIES; i++) {
+                    const { x, y } = cityCoordinates[i];
+                    ctx.beginPath();
+                    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = "#ef4444"; // Red-500
+                    ctx.fill();
+
+                    ctx.fillStyle = "#1f2937"; // Gray-800
+                    ctx.font = "12px sans-serif";
+                    ctx.fillText(i, x + 8, y + 4);
+                }
+
+                // Draw Route
+                if (route && route.length === NUM_CITIES) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "#3b82f6"; // Blue-500
+                    ctx.lineWidth = 2;
+
+                    const startCity = cityCoordinates[route[0]];
+                    ctx.moveTo(startCity.x, startCity.y);
+
+                    for (let i = 1; i < NUM_CITIES; i++) {
+                        const city = cityCoordinates[route[i]];
+                        ctx.lineTo(city.x, city.y);
+                    }
+
+                    ctx.lineTo(startCity.x, startCity.y); // Back to start
+                    ctx.stroke();
+                }
+            }
+
+            // --- 6. Main Control ---
+
+            /**
+             * Logs a message to the progress box.
+             * @param {string} message - The text to log.
+             */
+            function log(message) {
+                gaLog.innerHTML += `<span>${message}</span><br>`;
+                gaLog.scrollTop = gaLog.scrollHeight;
+            }
+
+            /**
+             * Helper for async delay.
+             * @param {number} ms - Milliseconds to wait.
+             */
+            function delay(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+
+            /**
+             * The main function to start and run the GA.
+             */
+            async function startGA() {
+                if (gaRunning) return;
+                gaRunning = true;
+                startButton.disabled = true;
+                startButton.textContent = "Running GA...";
+                gaLog.innerHTML = "";
+
+                if (!parseMatrix()) {
+                    gaRunning = false;
+                    startButton.disabled = false;
+                    startButton.textContent = "Start Genetic Algorithm";
+                    return;
+                }
+
+                // (Re)generate coordinates and draw cities
+                generateCityCoordinates();
+                drawCanvas([]); // Draw cities without route
+
+                initialPopulation();
+                globalBestDist = Infinity;
+                globalBestRoute = [];
+
+                for (let gen = 1; gen <= GENERATIONS; gen++) {
+                    const [genBestRoute, genBestDist] = evolvePopulation();
+
+                    if (genBestDist < globalBestDist) {
+                        globalBestDist = genBestDist;
+                        globalBestRoute = [...genBestRoute]; // Store a copy
+
+                        // Update UI
+                        bestDistanceEl.textContent = globalBestDist.toFixed(2);
+                        bestRouteEl.textContent = globalBestRoute.join(" → ");
+                        drawCanvas(globalBestRoute);
+                    }
+
+                    log(
+                        `Gen ${gen}/${GENERATIONS} | Best: ${genBestDist.toFixed(
+                            2
+                        )} | Global: ${globalBestDist.toFixed(2)}`
+                    );
+
+                    // Yield to browser to update UI
+                    await delay(50);
+                }
+
+                log("--- GA Finished ---");
+                log(`Final Best Distance: ${globalBestDist.toFixed(2)}`);
+                gaRunning = false;
+                startButton.disabled = false;
+                startButton.textContent = "Start Genetic Algorithm";
+            }
+
+            // --- 7. Event Listeners ---
+            startButton.addEventListener("click", startGA);
+
+            randomButton.addEventListener("click", () => {
+                generateRandomMatrix();
+                parseMatrix();
+                generateCityCoordinates();
+                drawCanvas([]);
+                log("Random matrix loaded. Click Start.");
+            });
+
+            // Initial setup on load
+            window.addEventListener("load", () => {
+                generateRandomMatrix();
+                if (parseMatrix()) {
+                    generateCityCoordinates();
+                    drawCanvas([]); // Draw cities
+                }
+                // Set canvas size based on container
+                const canvasContainer = canvas.parentElement;
+                const size = Math.min(
+                    canvasContainer.clientWidth,
+                    canvasContainer.clientHeight
+                );
+                canvas.width = size;
+                canvas.height = size;
+                drawCanvas([]); // Redraw with correct size
+            });
+
+            // Redraw on resize
+            // YEH LINE THEEK KAR DI HAI (Corrected this line)
+            window.addEventListener("resize", () => {
+                if (cityCoordinates.length === 0) {
+                    generateCityCoordinates();
+                }
+                drawCanvas(globalBestRoute);
+            });
+        </script>
+    </body>
+</html>
